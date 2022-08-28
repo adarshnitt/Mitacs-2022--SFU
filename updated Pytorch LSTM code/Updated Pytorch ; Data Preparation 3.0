@@ -1,0 +1,98 @@
+from google.colab import drive
+drive.mount("/content/gdrive/")
+
+import os
+import torch
+import pandas as pd
+#from skimage import io, transform
+import numpy as np
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+!pip install mne
+import mne
+# Ignore warnings
+import warnings
+from scipy import stats
+!pip install torchinfo
+import  torchinfo
+from torchinfo import summary
+warnings.filterwarnings("ignore")
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from sklearn.model_selection import KFold
+import torchsummary
+from torch.autograd import Variable
+import random
+import tensorflow as tf
+from torch.utils.data import Dataset, DataLoader,TensorDataset,random_split,SubsetRandomSampler, ConcatDataset
+from keras.metrics import mean_absolute_error  as mae
+from sklearn.metrics import explained_variance_score
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+
+!pip install --quiet pytorch-lightning
+!pip install --quiet tqdm
+
+import seaborn as sns
+from pylab import rcParams
+import matplotlib.pyplot as plt
+from matplotlib import rc
+from matplotlib.ticker import MaxNLocator
+
+
+import pandas as pd
+import numpy as np
+from tqdm.notebook import tqdm
+
+import torch
+import torch.autograd as autograd
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+
+import pytorch_lightning as pl
+#from pytorch_lightning.metrics.functional import accuracy, f1, auroc
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.loggers import TensorBoardLogger
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import classification_report, confusion_matrix
+
+from multiprocessing import cpu_count
+
+
+y_0_6_path="/content/gdrive/MyDrive/mitacs/data/Synthetic_Age_32Sec_128hz_5000sample_10channel_06_noise.npy"
+ydata=np.load(y_0_6_path,allow_pickle=True)
+x="/content/gdrive/MyDrive/mitacs/data/Synthetic_Data_noise_added_alpha_0.6_32Sec_128hz_5000sample_10channel.npy"
+xdata=np.load(x,allow_pickle=True)
+
+
+
+
+test_split = .2
+shuffle_dataset = True
+dataset_size = len(ydata)
+indices = list(range(dataset_size))
+split = int(np.floor(test_split * dataset_size))
+np.random.shuffle(indices)
+train_indices,test_indices = indices[split:],indices[:split]
+
+
+train_sequences={}
+test_sequences={}
+
+count=0
+for i in train_indices:
+  train_sequences[count]=(xdata[i,:,:],ydata[i])
+  count+=1
+
+count=0
+for i in test_indices:
+  test_sequences[count]=(xdata[i,:,:],ydata[i])
+  count+=1

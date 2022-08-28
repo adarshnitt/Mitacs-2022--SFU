@@ -1,0 +1,64 @@
+class NPY_CustomEEGData:
+    def __init__(self,x,y):
+      """
+      inputs:
+      x: npy araay of all edf outputs
+      y: age of all data in  npy array in x 
+      """
+      self.x = torch.from_numpy(np.asarray(x ,dtype=np.float32))#.double()
+      self.y = torch.from_numpy(np.asarray(y,dtype=np.float32))#.double()
+        
+    def __len__(self):
+      return len(self.x)
+
+    def __getitem__(self, idx):
+      """
+      output: X and Y
+      """
+      return self.x[idx],self.y[idx]
+    
+# when you pass path of edf files and y :
+class PATH_CustomEEGData:
+    def __init__(self,edf_file_directory_path,main_age_metadata):
+      """
+      inputs:
+      edf_files_directory_path: directory of all filtered edf  files 
+      main_age_metadata_: main metadata containg id and corresponding age
+      """
+      self.edf_file_directory = edf_file_directory_path
+      self.main_age_metadata = main_age_metadata
+      pass
+        
+    def __len__(self):
+      n=os.listdir(self.edf_file_directory)
+      return len(n)
+
+    def __getitem__(self, idx):
+      """
+      output: X and Y
+      """
+      file_i = os.listdir(self.edf_file_directory)[idx]
+      x = mne.io.read_raw_edf(os.path.join(self.edf_file_directory,file_i), verbose=False)
+      #print(x.info)
+      freq = int(dict(x.info)['sfreq'])
+
+      xdata1 = np.array(x.get_data()[:,:-freq]).astype(np.float32)  #
+      #print(xdata.shape)  
+      xdata=np.transpose(xdata1,(1,0))
+      id = x.filenames[0][-40:-4]
+      id1 = pd.DataFrame([id],columns=["ScanID"])
+      age1 = pd.merge(id1,pd.read_csv(self.main_age_metadata),how="inner").iloc[:,4].tolist()[0]
+      age= np.array(age1).astype(np.float32)
+      return xdata,age
+
+dataset=PATH_CustomEEGData(X_path, Y_path)
+#xx1=dataset.__getitem__(10)
+
+# for i in range(7020):
+#      x,y=dataset.__getitem__(i)
+#      if np.any(np.isnan(x)):
+#            print("yes  x")
+#      if np.any(np.isnan(y)):
+#            print("yes  y")
+
+dataset=PATH_CustomEEGData(X_path, Y_path)   # contian x nd y data

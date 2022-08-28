@@ -1,0 +1,17 @@
+from keras import Sequential, Model, Input
+from keras.layers import Dense
+from tensorflow.keras import activations
+model=Sequential
+x=Input(shape=(20)) # put pca inputs here
+y=Dense(20)(x)
+y=Dense(40,activation="relu")(y+x)
+y=Dense(1,activation="relu")(y)
+model=Model(x,y)
+model.summary()
+
+model.compile(loss="MeanSquaredError", optimizer=tf.keras.optimizers.Adam(learning_rate=0.003))
+#model.summary()
+#fitting the model
+check=pcaf(x100)
+x100=tf.convert_to_tensor(check)
+model.fit(x100, y100, steps_per_epoch=5 ,epochs=500, batch_size=n,use_multiprocessing=True  )

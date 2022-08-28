@@ -1,0 +1,83 @@
+!pip install pyplnoise
+!pip install numpy
+!pip install pandas
+!pip install matplotlib
+!pip install scipy
+
+
+import pyplnoise
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy
+from scipy.stats import zscore
+from scipy.signal import butter, lfilter
+
+
+def butter_bandpass(lowcut, highcut, fs = 128.0, order=5):
+    return butter(order, [lowcut, highcut], fs=fs, btype='band')
+
+def butter_bandpass_filter(data, lowcut, highcut, fs = 128.0, order=5):
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+
+
+def lower_frequency(age):
+  fL = (age - 20)/6 + 5
+  return fL
+
+def upper_frequency(age):
+  fH = (age - 20)/6 + 10
+  return fH
+
+
+def uniform_age(units):
+  age = np.linspace(20, 80, units)
+  return age
+
+# datapoints = 10*128
+# freq_l = lower_frequency(20)
+# freq_h = upper_frequency(20)
+# b, a = butter_bandpass(freq_l, freq_h)
+# x = np.empty((20, datapoints), dtype = 'float32')
+
+units= 5000 # no of samples
+age=uniform_age(units)
+np.save("/content/gdrive/MyDrive/mitacs/data/Synthetic_Age_32Sec_128hz_5000sample_10channel_06_noise", age)
+
+
+def sample(age,sample_freq=128,timescale=32,sample=units,alpha=0.6,channel=10):
+  datapoints=sample_freq*timescale
+
+  final_sample=[]
+
+  for i in range(sample): # for ith smaple
+    freq_l = lower_frequency(age[i])
+    freq_h = upper_frequency(age[i])
+
+    
+    x = np.random.randn(channel, datapoints)
+
+    sample_i=[]
+    for j in range(channel):
+      
+      a=pyplnoise.PinkNoise(sample_freq,freq_l,freq_h)
+      noise=a.get_series(datapoints)
+      noise_hat = zscore(noise, axis = 0)
+
+      y = butter_bandpass_filter(x[j][:], freq_l, freq_h)
+      y_hat = zscore(y, axis = 0)
+
+      y_hat_new = alpha*noise_hat + (1-alpha)*y_hat
+      data_final = zscore(y_hat_new, axis = 0)
+
+      sample_i.append(data_final)
+    final_sample.append(sample_i)
+    
+  return final_sample # shape will be (units,channekls,samplefreq*timescale)
+
+
+current1=sample(age)
+
+np.save("/content/gdrive/MyDrive/mitacs/data/Synthetic_Data_noise_added_alpha_0.6_32Sec_128hz_5000sample_10channel.npy",current1)

@@ -1,0 +1,12 @@
+train_epoch(model,0, 2048,device,dataloader=train_loader,loss_fn=loss_fn,optimizer=optimizer)
+ytest,ypred=predict(model,0,2048)
+out=[]
+# for i in ypred:
+#   for j in i:
+#     #print(j[0])
+#     out.append(j[0])
+for i in ypred:
+  #print(i)
+  out.append(i[0])
+  #break
+show_metrics(np.array(ytest), np.array(out))

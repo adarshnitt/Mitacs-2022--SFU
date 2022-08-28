@@ -1,0 +1,182 @@
+class SurfaceDataset(Dataset):
+
+  def __init__(self,sequences):
+    self.sequences = sequences
+
+  def __len__(self):
+    return len(self.sequences)
+
+  def __getitem__(self,idx):
+    sequence, label = self.sequences[idx]
+    local=np.transpose(sequence,(1,0))
+    #print(local.shape)
+    return dict(
+        sequence = torch.from_numpy(np.asarray(local ,dtype=np.float32)),
+        labels = torch.from_numpy(np.asarray(label ,dtype=np.float32))
+    )
+check=SurfaceDataset(train_sequences)
+check.__getitem__(10)
+
+
+
+class SurfaceDataModule(pl.LightningDataModule):
+
+  def __init__(self, train_sequences, test_sequences, batch_size=8):
+    super().__init__()
+    self.batch_size = batch_size
+    self.train_sequences = train_sequences
+    self.test_sequences = test_sequences
+
+  def setup(self, stage=None):
+    self.train_dataset = SurfaceDataset(self.train_sequences)
+    self.test_dataset = SurfaceDataset(self.test_sequences)
+
+  def train_dataloader(self):
+    return DataLoader(
+      self.train_dataset,
+      batch_size=self.batch_size,
+      shuffle=True,
+      num_workers=cpu_count()
+    )
+
+  def val_dataloader(self):
+    return DataLoader(
+      self.test_dataset,
+      batch_size=self.batch_size,
+      shuffle=False,
+      num_workers=cpu_count()
+    )
+
+  def test_dataloader(self):
+    return DataLoader(
+      self.test_dataset,
+      batch_size=self.batch_size,
+      shuffle=False,
+      num_workers=cpu_count()
+    )
+
+    
+N_EPOCHS = 50
+BATCH_SIZE = 8
+
+data_module = SurfaceDataModule(
+  train_sequences,
+  test_sequences,
+  batch_size=BATCH_SIZE
+)
+
+
+
+class SequenceModel(nn.Module):
+  def __init__(self,n_features, n_hidden=256, n_layers=3):
+    super().__init__()
+    
+    self.lstm = nn.LSTM(
+        input_size=n_features,
+        hidden_size=n_hidden,
+        num_layers=n_layers,
+        batch_first=True,
+        dropout=0.75
+    )
+    self.flat=torch.nn.Flatten()
+    self.l0=nn.Linear(n_hidden,1)
+    
+
+  def forward(self,x):
+    #print(x.shape,"x shape")
+    self.lstm.flatten_parameters()
+    a,(hidden,cell) = self.lstm(x)
+    out = hidden[-1]
+
+    #out = self.flat(out)
+    #print(out.shape)
+
+    out=self.l0(out)
+    out=torch.squeeze(out,1)
+   
+    return out
+
+n_features=10
+n_hidden=256
+n_layers=3
+model3=SequenceModel(n_features=n_features,n_hidden=n_hidden,n_layers=n_layers).to(device)  # len of sample at 1 timeseries
+s=summary(model3, (1,1280, 10))  # sample, timeseries, len of one timeseries
+print(s)
+
+
+class SurfacePredictor(pl.LightningModule):
+
+  def __init__(self,n_features:int, n_hidden: int,n_layers:int):
+    super().__init__()
+    self.model = SequenceModel(n_features, n_hidden,n_layers)
+    self.criterion = torch.nn.L1Loss()
+
+  def forward(self, x, labels=None):
+    
+    output = self.model(x)
+    loss = 0
+    if labels is not None:
+        loss = self.criterion(output, labels)
+    return loss, output
+
+  def training_step(self, batch, batch_idx):
+    x = batch["sequence"]
+    labels = batch["labels"]
+    loss, outputs = self(x, labels)
+    #predictions = torch.argmax(outputs,dim=1)
+    predictions=outputs
+    #step_accuracy = accuracy(predictions, labels)
+
+    self.log("train_loss", loss, prog_bar=True, logger=True)
+    #self.log("train_accuracy", step_accuracy, prog_bar=True, logger=True)
+    return {"loss": loss } # "accuracy": step_accuracy}
+
+  def validation_step(self, batch, batch_idx):
+    x = batch["sequence"]
+    labels = batch["labels"]
+    loss, outputs = self(x, labels)
+    #predictions = torch.argmax(outputs,dim=1)
+    predictions=outputs
+    #step_accuracy = accuracy(predictions, labels)
+
+    self.log("val_loss", loss, prog_bar=True, logger=True)
+    #self.log("val_accuracy", step_accuracy, prog_bar=True, logger=True)
+    return {"loss": loss}# "accuracy": step_accuracy}
+
+  def test_step(self, batch, batch_idx):
+    
+    x = batch["sequence"]
+    labels = batch["labels"]
+    loss, outputs = self(x, labels)
+    #predictions = torch.argmax(outputs,dim=1)
+    predictions=outputs
+    #step_accuracy = accuracy(predictions, labels)
+
+    self.log("test_loss", loss, prog_bar=True, logger=True)
+    #self.log("test_accuracy", step_accuracy, prog_bar=True, logger=True)
+    return {"loss": loss}# "accuracy": step_accuracy}
+
+  
+  def configure_optimizers(self):
+    return optim.Adam(self.parameters(), lr=0.0001)
+    
+    
+def show_metrics(y_test, y_predict):
+    from sklearn.metrics import mean_absolute_error as mae
+    print('MAE:', round(mae(y_test, y_predict), 3))
+    print('Correlation:', round(np.corrcoef(y_test, y_predict)[0,1], 3))
+    print('Explained variance:', round(explained_variance_score(y_test, y_predict), 3))
+    
+    plt.rcParams["figure.figsize"] = (8, 8)
+    plt.scatter(y_test, y_predict, color='k', alpha=0.5)
+    plt.xlim([0, 100])
+    plt.ylim([0, 100])
+    plt.xlabel('Actual age', fontsize=14)
+    plt.ylabel('Predicted age', fontsize=14)
+
+    a, b = np.polyfit(y_test, y_predict, 1)
+    
+    plt.plot(y_test, a*y_test + b, 'r')
+
+    plt.show()
+    pass

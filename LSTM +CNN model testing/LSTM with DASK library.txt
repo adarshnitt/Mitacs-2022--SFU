@@ -1,0 +1,66 @@
+
+class KerasWrapper:
+    def __init__(self, model ):
+        self.model = model
+        #self.feat_mean = feat_mean
+        #self.feat_std = feat_std
+        
+    def predict_proba(self, X):
+        
+        preds = self.model.predict((X - self.feat_mean)/self.feat_std)
+        return np.c_[preds, preds]
+        
+# using a function so we can track memory usage
+#@track_memory_use(close=False, return_history=True)
+def dask_read_and_incrementally_fit_keras(blocksize):
+    
+    # reading df with dask
+    #df_train = dd.read_csv('./train.csv', blocksize=blocksize)
+    df_train=age
+    
+    # creating keras model
+    from keras.layers import Bidirectional
+    model = Sequential()
+    model.add(Bidirectional(LSTM(256,return_sequences=True), input_shape=(20,30000))) # 10 is ouput of lstm block and input is 20 timesteps with 90000 inpiut shape  
+    model.add(Dropout(0.2))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(LSTM(128, return_sequences=True))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(LSTM(64, return_sequences=False))
+    model.add(tf.keras.layers.BatchNormalization())
+    #model.add(LSTM(300))
+    #model.add(Dropout(0.2))
+    model.add(Dense(32, activation='relu'))
+    model.add(Dense(6, activation='relu'))
+    model.compile(loss="MeanAbsoluteError", optimizer='adam')
+    #model.summary()
+
+    
+    # getting mean and std for dataset to normalize features
+    #feat_mean = df_train.drop('isFraud', axis=1).mean().compute(scheduler='synchronous')
+    #feat_std = df_train.drop('isFraud', axis=1).std().compute(scheduler='synchronous')
+    
+    # loop for number of partitions
+    for i in range(df_train.npartitions):
+        print("hii,..........................................00",i)
+        # getting one partition
+        part = df_train.get_partition(i).compute(scheduler='synchronous')
+        print(part)
+        # splitting
+        #X_part = (part.drop('isFraud', axis=1) - feat_mean)/feat_std
+        #y_part = part['isFraud']
+        #print(np.array(part["data"]))
+        X_part=tf.convert_to_tensor(np.array(part["data"])[0] )
+        X_part_1=tf.expand_dims(X_part,axis=0)
+        print(X_part_1.shape,X_part_1.dtype)
+        y_part=tf.convert_to_tensor(part["AgeYears"])
+        
+        if i==3:
+          print(part["AgeYears"])
+          print(X_part_1,y_part)
+        
+        model.fit(X_part_1, y_part) 
+        
+    return KerasWrapper(model)
+
+model = dask_read_and_incrementally_fit_keras(blocksize=5e6)

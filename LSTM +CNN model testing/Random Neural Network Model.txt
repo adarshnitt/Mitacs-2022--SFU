@@ -1,0 +1,73 @@
+class random_nn :
+    def __init__(self, xtrain, ytrain,xtest,ytest,epochs=1,steps_per_epoch=10,n_estimators=200):
+        self.xtrain=xtrain
+        self.ytrain=ytrain
+        self.xtest=xtest
+        self.ytest=ytest
+        self.epochs=epochs
+        self.steps_per_epoch=steps_per_epoch
+        self.n_estimators=n_estimators
+        self.x=None
+        self.y=None
+    def dmodel(self):
+        model=keras.models.Sequential([
+        keras.layers.Dense(20, input_shape=(20,90000), activation="relu"),   
+        keras.layers.Flatten(),
+        #keras.layers.Dense(30, activation="relu"),
+        keras.layers.Dense(30, activation="relu"),
+        #keras.layers.Dense(100, activation="relu"), 
+        #keras.layers.Dense(50, activation="sigmoid"),
+        #keras.layers.Reshape((10, 5))
+        #keras.layers.Dense(1)
+        keras.layers.Dense(1)])
+        model.summary()
+        model.compile(loss="MeanSquaredError", optimizer=tf.keras.optimizers.Adam(learning_rate=0.003))
+        #model.summary()
+        # fitting the model
+        return model
+    def plotting(self,pred,y,xlabel="Sample",ylabel="Days",sub="testing"):
+        plt.figure()
+        plt.plot(pred)
+        plt.plot(y,"*g")
+        plt.legend(["predicted","actual"])
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(sub)
+        #plt.subplot()
+        pass
+    def root_mean_squared_error(self,x,y):
+        return np.mean(np.square(x - y)) 
+    def rmodel(self):
+        from sklearn.ensemble import RandomForestRegressor
+        m=RandomForestRegressor(n_estimators=self.n_estimators)
+        return m
+    def train(self):
+        deepmodel=self.dmodel()
+        modeld=deepmodel.fit(self.xtrain, self.ytrain, self.steps_per_epoch      ,self.epochs,use_multiprocessing=True)
+        pred1=deepmodel.predict(self.xtrain)
+        self.ddmodel=deepmodel
+        self.rmodel=self.rmodel().fit(pred1,self.ytrain)
+        out1=self.rmodel.predict(pred1)
+        acc=self.root_mean_squared_error(out1,self.ytrain)
+        self.plotting(out1,self.ytrain)
+        plt.figure()
+        plt.plot(modeld.history["loss"])
+        print(acc," training accuracy is ----------------------------@ ")
+        return self.ddmodel,self.rmodel,acc,modeld
+    
+    def predictions(self):
+        """dmodel  ka output alag hai, model sahi karo"""
+        deepmodel,rmodel,acc,modeld=self.train()
+        x=self.xtest
+        y=self.ytest
+        pred1=deepmodel.predict(x)
+        pred=rmodel.predict(pred1)
+        self.plotting(pred,y)
+        #acc=self.root_mean_squared_error(pred,self.ytest)
+        #print(acc," TESTING accuracy is ***********************************@ ")
+        return pred,modeld,deepmodel,rmodel
+check=random_nn(x100,y100,x100,y100,epochs=3,steps_per_epoch=100,n_estimators=200)
+pred,modeld,deepmodel,rmodel=check.predictions()
+a=deepmodel.predict(x100)
+out=rmodel.predict(a)
+check.root_mean_squared_error(out,y100)

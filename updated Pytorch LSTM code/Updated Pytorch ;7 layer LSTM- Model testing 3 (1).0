@@ -1,0 +1,55 @@
+%load_ext tensorboard
+%tensorboard --logdir ./lightning_logs
+
+
+n_layers=7
+
+model3=SequenceModel(n_features=n_features,n_hidden=n_hidden,n_layers=n_layers).to(device)  # len of sample at 1 timeseries
+s=summary(model3, (1,1280, 10))  # sample, timeseries, len of one timeseries
+print(s)
+
+model = SurfacePredictor(n_features=n_features,n_hidden=n_hidden,n_layers=n_layers)
+
+checkpoint_callback = ModelCheckpoint(
+    dirpath="checkpoints",
+    filename="best-checkpoint",
+    save_top_k=1,
+    verbose=True,
+    monitor="val_loss",
+    mode="min"
+)
+
+early_stopping_callback = EarlyStopping(monitor='val_loss', patience=2)
+logger=True
+trainer = pl.Trainer(
+  logger=logger,
+  #checkpoint_callback=checkpoint_callback,
+  callbacks=[early_stopping_callback,checkpoint_callback],
+  max_epochs=N_EPOCHS,
+  #gpus=1,
+  accelerator ="gpu"
+  #progress_bar_refresh_rate=30
+)
+
+# note if you are running on "gpu" kindly change accelator option in to gpu in "traine"  description
+trainer.fit(model, data_module)
+
+def transform(x):
+  return x.detach().tolist()
+test_dataset = SurfaceDataset(test_sequences)
+
+predict_age = []
+actual_age = []
+
+try:
+  for item in tqdm(test_dataset):
+    sequence = item["sequence"]
+    label = item["labels"]
+    _, output = trained_model(sequence.unsqueeze(dim=0))
+    actual_age.append(transform(label))
+    predict_age.append(transform(output)[0])
+    #print(sequence.unsqueeze(dim=0).shape)
+except:
+  pass
+
+show_metrics(np.array(actual_age), np.array(predict_age))

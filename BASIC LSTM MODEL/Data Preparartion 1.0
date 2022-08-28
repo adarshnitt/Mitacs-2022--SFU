@@ -1,0 +1,97 @@
+from google.colab import drive
+drive.mount("/content/gdrive/")
+
+import os
+import torch
+import pandas as pd
+#from skimage import io, transform
+import numpy as np
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+!pip install mne
+import mne
+# Ignore warnings
+import warnings
+
+!pip install torchinfo
+import  torchinfo
+from torchinfo import summary
+warnings.filterwarnings("ignore")
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from sklearn.model_selection import KFold
+import torchsummary
+from torch.autograd import Variable
+import random
+import tensorflow as tf
+from torch.utils.data import Dataset, DataLoader,TensorDataset,random_split,SubsetRandomSampler, ConcatDataset
+from keras.metrics import mean_absolute_error  as mae
+from sklearn.metrics import explained_variance_score
+print("stage: libraries importing done")
+
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+X_path =  '/content/gdrive/MyDrive/data/xdata_20_2048.npy'
+Y_path =  '/content/gdrive/MyDrive/data/ydata_20_2048.npy'
+xdata=np.load(X_path,allow_pickle=True)
+ydata=np.load(Y_path,allow_pickle=True)
+
+
+#NPY_CustomEEGData : use it  when you load data as 
+class NPY_CustomEEGData:
+    def __init__(self,x,y,device=device):
+      """
+      inputs:
+      x: npy araay of all edf outputs
+      y: age of all data in  npy array in x 
+      """
+      self.x = torch.from_numpy(np.asarray(x ,dtype=np.float32))#.double()
+      self.y = torch.from_numpy(np.asarray(y,dtype=np.float32))#.double()
+      self.device=device
+        
+    def __len__(self):
+      return len(self.x)
+
+    def __getitem__(self, idx):
+      """
+      output: X and Y
+
+      """
+
+      xdata=np.transpose(self.x[idx],(1,0))
+      #xdata=self.x[idx]
+      return xdata.to(self.device),self.y[idx].to(self.device)
+dataset=NPY_CustomEEGData(np.stack(xdata,0), ydata)
+xx1=dataset.__getitem__(10)
+
+
+validation_split = .2
+shuffle_dataset = True
+dataset_size = len(dataset)
+indices = list(range(dataset_size))
+split = int(np.floor(validation_split * dataset_size))
+np.random.shuffle(indices)
+
+train_indices, val_indices,test_indices = indices[split:], indices[:int(split/2)],indices[int(split/2):split]
+
+# Creating PT data samplers and loaders:
+train_sampler = SubsetRandomSampler(train_indices)
+valid_sampler = SubsetRandomSampler(val_indices)
+test_sampler= SubsetRandomSampler(test_indices)
+batch_size=32
+train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
+validation_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,sampler=valid_sampler)
+test_loader= torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=test_sampler)
+del xdata
+del ydata
+del indices
+del dataset_size
+del split
+
+for x,y in train_loader:
+  print(x.shape)
+  break

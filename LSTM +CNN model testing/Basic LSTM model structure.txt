@@ -1,0 +1,17 @@
+# defining the LSTM model
+model = Sequential()
+model.add(Dense(20,  input_shape=(20,90000),activation='relu'))
+model.add(Dense(20,  activation='relu'))
+model.add(Dropout(0.2))
+model.add(Dense(20,  activation='relu'))
+model.add(Dense(20,  activation='relu'))
+model.add(LSTM(20, input_shape=(20,20), return_sequences=True)) # 10 is ouput of lstm block and input is 20 timesteps with 90000 inpiut shape
+model.add(LSTM(20, input_shape=(20,20), return_sequences=False))  
+#model.add(Dropout(0.5))
+#model.add(LSTM(10, input_shape=(20,1), return_sequences=False))  
+#model.add(LSTM(300))
+#model.add(Dense(20, activation='relu'))
+model.add(Dense(1, activation='relu'))
+
+model.compile(loss="MeanSquaredError", optimizer='adam')
+model.summary()

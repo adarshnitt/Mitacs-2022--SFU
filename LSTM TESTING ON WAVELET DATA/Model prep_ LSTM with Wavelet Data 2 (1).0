@@ -1,0 +1,124 @@
+import os
+import torch
+import pandas as pd
+#from skimage import io, transform
+import numpy as np
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+!pip install mne
+import mne
+# Ignore warnings
+import warnings
+
+!pip install torchinfo
+import  torchinfo
+from torchinfo import summary
+warnings.filterwarnings("ignore")
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from sklearn.model_selection import KFold
+import torchsummary
+from torch.autograd import Variable
+import random
+import tensorflow as tf
+from torch.utils.data import Dataset, DataLoader,TensorDataset,random_split,SubsetRandomSampler, ConcatDataset
+from keras.metrics import mean_absolute_error  as mae
+from sklearn.metrics import explained_variance_score
+print("stage: libraries importing done")
+
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+class simpleLSTM(nn.Module):
+     # only lstm network
+    def __init__(self, length,input_size, hidden_size, num_layers=1):
+        super(simpleLSTM, self).__init__()
+      
+        self.num_layers = num_layers
+        self.input_size = input_size #  input at time-0 sequence lenth=20 units
+        self.hidden_size = hidden_size
+
+        self.lstm1 = nn.LSTM(input_size=20, hidden_size=20,num_layers=num_layers,batch_first=True).to(device)
+        self.lstm2 = nn.LSTM(input_size=20, hidden_size=2,num_layers=num_layers,batch_first=True).to(device)
+        self.lstm3 = nn.LSTM(input_size=50, hidden_size=20,num_layers=num_layers,batch_first=True).to(device)
+        self.lstm4 = nn.LSTM(input_size=20, hidden_size=20,num_layers=num_layers,batch_first=True).to(device)
+
+        self.n=length
+        
+        self.conv1=nn.Conv2d(1,1,(16,2))
+        self.conv2=nn.Conv2d(1,1,(32,2))
+        self.conv3=nn.Conv2d(1,1,(256,1))
+        self.conv4=nn.Conv1d(700,400,3)
+        self.conv5=nn.Conv1d(400,100,3)
+        
+        
+        self.flat=torch.nn.Flatten()
+        self.dropout=torch.nn.Dropout(0.3)
+        self.relu=torch.nn.ReLU()
+        self.batchNorm=torch.nn.BatchNorm1d(self.n).to(device)
+        
+        self.l0=nn.Linear(506*18, 4000)
+        self.l1=nn.Linear(4000,2000)
+        self.l2=nn.Linear(2000,1000)
+        self.l3=nn.Linear(1000,500)
+        self.l4=nn.Linear(500,250)
+        self.l5=nn.Linear(250,100)
+        self.l6=nn.Linear(100,10)
+        self.l7=nn.Linear(10,1)
+
+       
+    def forward(self, x):
+        print(x.shape,"input shape")
+        #x=torch.unsqueeze(x[:,100:200,:],0)
+        x=x[:,1,:,:]
+        print(x.shape,"updated shape")
+        
+
+        h1 = Variable(torch.zeros( 1, x.shape[0],20)).to(device) #x.shape[0],
+        c1 = Variable(torch.zeros(1, x.shape[0],20)).to(device) #x.shape[0],
+        
+        a1,(h1,c1)=self.lstm1(x,(h1,c1))
+        print(a1.shape,h1.shape)
+        
+        #b=self.batchNorm(a1)
+        #print(b.shape)
+        c=torch.unsqueeze(a1,1)
+        #print(c.shape)
+        out=self.conv1(c)
+        out=self.conv2(out)
+        out=torch.nn.MaxPool2d((8,1))(out)
+        #print(out.shape)
+        #out=self.conv3(out)
+
+        # out=self.conv2(out)
+        # out=self.conv3(out)
+        # out=self.conv4(out)
+        # out=self.conv5(out)
+        #print(a1.shape)
+
+        out = self.flat(out)
+      
+        out=self.l0(out)
+        out=self.l1(out)
+        out=self.l2(out)
+        out=self.l3(out)
+        out=self.l4(out)
+        out=self.l5(out)
+        out=self.l6(out)
+        out=self.l7(out)
+
+        out=torch.squeeze(out,1)
+        return out
+
+model3=simpleLSTM(length=20,input_size=20,hidden_size=5).to(device)  # len of sample at 1 timeseries
+s=summary(model3, (1,20,4096,20))  # sample, timeseries, len of one timeseries
+print(s)
+
+
+model=model3
+optimizer = torch.optim.Adam(model.parameters(), lr=0.00001, weight_decay=0.0001)
+train_epoch(model=model,start_index=0,end_index=4096,device=device,dataloader=train_loader,loss_fn=loss_fn,optimizer=optimizer,epochs=50,patience_iterations=50,previous_loss_index=0,index_range=1)
+
+

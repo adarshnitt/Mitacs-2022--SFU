@@ -1,0 +1,16 @@
+def show_metrics(y_test, y_predict):
+    print('MAE:', round(mae(y_test, y_predict), 3))
+    print('Correlation:', round(np.corrcoef(y_test, y_predict)[0,1], 3))
+    print('Explained variance:', round(explained_variance_score(y_test, y_predict), 3))
+    
+    plt.rcParams["figure.figsize"] = (8, 8)
+    plt.scatter(y_test, y_predict, color='k', alpha=0.5)
+    plt.xlim([0, 100])
+    plt.ylim([0, 100])
+    plt.xlabel('Actual age', fontsize=14)
+    plt.ylabel('Predicted age', fontsize=14)
+
+    a, b = np.polyfit(y_test, y_predict, 1)
+    plt.plot(y_test, a*y_test + b, 'r')
+
+    plt.show()

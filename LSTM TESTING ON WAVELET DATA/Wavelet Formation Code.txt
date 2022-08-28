@@ -1,0 +1,134 @@
+from google.colab import drive
+drive.mount("/content/gdrive/")
+
+import os
+import torch
+import pandas as pd
+#from skimage import io, transform
+import numpy as np
+import matplotlib.pyplot as plt
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils
+!pip install mne
+import mne
+# Ignore warnings
+import warnings
+from scipy import stats
+!pip install torchinfo
+import  torchinfo
+from torchinfo import summary
+warnings.filterwarnings("ignore")
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from sklearn.model_selection import KFold
+import torchsummary
+from torch.autograd import Variable
+import random
+import tensorflow as tf
+from torch.utils.data import Dataset, DataLoader,TensorDataset,random_split,SubsetRandomSampler, ConcatDataset
+from keras.metrics import mean_absolute_error  as mae
+from sklearn.metrics import explained_variance_score
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+X_0_8_path="/content/gdrive/MyDrive/mitacs 2023/Synthetic_Data_noise_added_alpha_0.8_2000samples.npy"
+
+index=np.load("/content/gdrive/MyDrive/mitacs 2023/indexes_400.npy",allow_pickle=True)
+
+#data=np.load(X_0_8_path,allow_pickle=True)[index] # only few samples to avoid memory issue
+import gc
+gc.collect()
+
+
+
+
+
+import pywt
+# Input(2000,20,4096)  # (toal_eeg_recordings,Toatl_channels, Toatal_datapoints)
+# output:(2000,10,20,4096) (Samples, Wavelets_pseudo_frequency,Toatal_channels,Toatal_datapoints)
+
+N_Samples=2000 
+filter_count=10  # no of pseudo-frequencies used to filter eeg data # how many filters u need between (0,max_freq_value)
+N_datapoints= 4096 #Total no of datapoints in 1 channels
+sample_rate=128  # sampling rate of eeg data
+channels=20
+
+max_freq_value=55 # max pseudo-frequenciy # maximum frequency we can use to filter eeg data
+freq_=np.logspace(np.log10(1),np.log10(max_freq_value),filter_count)
+
+# s1=np.logspace(1,55,20) # (base=10)**start,(base==10)**stop
+# s2=np.linspace(1,55,20) # (base=1)**start,(base==10)**stop
+# plt.plot(s1)
+# plt.plot(s2)
+print(freq_)
+Wavelet_processed_data = np.ndarray(shape=(N_Samples, filter_count, channels, N_datapoints), dtype = 'float32')
+pseudo_frequency = sample_rate*pywt.scale2frequency('cgau8',freq_, precision=8) #returns the pseudo-frequencies corresponding to the scales given by  wavelet "cgau8" specified by wname 
+
+# for sample in range(int(data.shape[0]/2),int(data.shape[0])):
+#   print(sample)
+#   for channel in range(data.shape[1]):
+#     present_data=data[sample,channel,:]
+
+#     coef, freqs=pywt.cwt(present_data,pseudo_frequency,'cgau8',1/sample_rate)
+#     Wavelet_processed_data[sample,:,channel,:] = coef  # filtered signal for respective frequency
+
+#   gc.collect()
+
+final=[] #np.ndarray(shape=(N_Samples, filter_count*channels, N_datapoints), dtype = 'float32')
+for sample in range(0,int(data.shape[0])):
+  current = np.ndarray(shape=( filter_count*channels, N_datapoints), dtype = 'float32')
+  
+  for channel in range(data.shape[1]):
+    present_data=data[sample,channel,:]
+    coef, freqs=pywt.cwt(present_data,pseudo_frequency,'cgau8',1/sample_rate)
+    current=np.concatenate((current,np.real(coef)))
+  new=current[filter_count*channels:,]
+  final.append(new)
+
+#print(np.array(final).shape)
+# check=np.any(np.isnan(np.array(final)))
+del data
+d=np.array(final)
+
+# due to memory issue i m notrying normalization as given below
+#Wavelet_transformed_arrray=stats.zscore(d,axis=2)
+#del d
+
+
+
+
+X_0_8_path="/content/gdrive/MyDrive/mitacs 2023/abs_logspace_Wavelet_without_zscore_data_0_400_samples_0_8_.npy"
+data=np.load(X_0_8_path,allow_pickle=True)
+Wavelet_transformed_arrray=stats.zscore(data,axis=2)
+del data
+
+np.save("/content/gdrive/MyDrive/mitacs 2023/real_logspace_Wavelet_without_zscore_data_0_400_samples_0_8_.npy",d)
+
+
+
+
+# code for visual inspection of data#plt.subplots(200,1,figsize=(25,2));
+freq_=np.logspace(np.log10(1),np.log10(55),10)
+import time
+data=Wavelet_transformed_arrray[17,:,:]
+print(data.shape)
+count=1
+channel=0
+for i in range(data.shape[0]):
+  if i%10==0:
+    channel+=1
+  plt.figure(figsize=(25,5));
+  if i%10==0:
+    count=1
+    plt.title("Channel No: {j},wavelet Function scale value : {i}".format(j=channel,i=freq_[count-1]),fontsize=30);
+  else:
+    plt.title("Channel No: {j},wavelet Function scale value: {i}".format(j=channel,i=freq_[count-1]),fontsize=30);
+  count+=1
+  plt.plot(data[i,:]);
+  plt.show();
+  time.sleep(1)
+  plt.close()
+  plt.clf()
+  

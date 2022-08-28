@@ -1,0 +1,31 @@
+from scipy import signal
+# our data is :Wavelet_transformed_arrray
+Wavelet_transformed_arrray.shape
+unit=Wavelet_transformed_arrray[12,1,:] # extracting any random sample [random sample,random channel,timeseries ]
+print(unit.shape)
+
+m, n = signal.welch(unit,128)
+
+
+plt.semilogy(m, n) # plot on log scale
+plt.figure()
+plt.plot(m, n) # plot on normal scale
+
+
+# plotting power spectrogram to finding at which frequency point power density is high
+freq_=np.logspace(np.log10(1),np.log10(55),10)
+
+testing_data=Wavelet_transformed_arrray[29,:,:]
+
+for freq_i in range(len(freq_)):
+  current_freq_scale_data=testing_data[freq_i,:]
+  #print(current_freq_scale_data.shape)
+  m, n = signal.welch(current_freq_scale_data,128,nperseg=4096,scaling="spectrum")
+
+  mm=max(n)  #max power density 
+  max_freq_index=np.where(n==mm) 
+  freqm=max_freq_index[0].tolist()[0] # index of max power density
+
+  plt.plot(m,n)  # x is frquency, vs y is power density corresponding given frequency
+  plt.title("real_frequency_scale is:  {i}, calculated_max_pwer_freq is {j} ".format(i=freq_[freq_i],j=m[freqm]))
+  plt.figure()
